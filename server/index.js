@@ -66,7 +66,7 @@ function createBoard(n){
   const a=shuffle(cells.filter(c=>c.terrain!=='desierto'))[0],b=shuffle(cells.filter(c=>c.terrain!=='desierto'&&c.id!==a.id))[0]; [a.number,b.number]=[b.number,a.number];
  }
  // Ports on boundary vertices, shuffled. 5 resource-specific + 4 generic to give 9 trade spots on large boards; UI only uses reachable vertex.
- const boundary=topo.vertices.filter(v=>v.hexes.length<3).map(v=>v.id); const portTypes=shuffle(['croquetas','cerveza','chiva','vater','cruz','3:1','3:1','3:1','3:1']);
+ const boundary=topo.vertices.filter(v=>v.hexes.length<3).map(v=>v.id); const genericCount=n<=4?4:n<=6?6:8; const portTypes=shuffle(['croquetas','cerveza','chiva','vater','cruz',...Array(genericCount).fill('3:1')]);
  topo.vertices.forEach(v=>v.port=null); shuffle(boundary).slice(0,portTypes.length).forEach((vid,i)=>topo.vertices[vid].port=portTypes[i]);
  return {...topo,portTypes};
 }
@@ -102,7 +102,16 @@ wss.on('connection',ws=>{let room=null,id=null;ws.on('message',raw=>{let m;try{m
  if(m.type==='create'){room=initRoom();id=uid();const profile=PROFILES.includes(m.profile)?m.profile:PROFILES[0];const color=COLORS.includes(m.color)?m.color:COLORS[0];room.players[id]=makePlayer(profile,String(m.name||profile).slice(0,24),color,m.photo||'');room.host=id;room.sockets.set(id,ws);rooms.set(room.code,room);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
  if(m.type==='join'){const r=rooms.get(String(m.code||'').toUpperCase());if(!r)return err(ws,'No existe esa partida.');if(r.phase!=='lobby')return err(ws,'La partida ya ha comenzado.');if(connectedPlayers(r).length>=8)return err(ws,'La partida está llena.');if(Object.values(r.players).some(p=>p.profile===m.profile&&p.connected))return err(ws,'Ese perfil ya está ocupado.');if(Object.values(r.players).some(p=>p.color===m.color&&p.connected))return err(ws,'Ese color ya está ocupado.');room=r;id=uid();room.players[id]=makePlayer(PROFILES.includes(m.profile)?m.profile:PROFILES[0],String(m.name||m.profile).slice(0,24),COLORS.includes(m.color)?m.color:COLORS[0],m.photo||'');room.sockets.set(id,ws);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
  if(!room||!id||!room.players[id])return; const p=room.players[id];
- if(m.type==='profile'){p.name=String(m.name||p.name).slice(0,24);p.photo=String(m.photo||'').slice(0,200000);if(COLORS.includes(m.color)&&!Object.values(room.players).some(x=>x!==p&&x.connected&&x.color===m.color))p.color=m.color;send(room);return;}
+ if(m.type==='profile'||m.type==='profileUpdate'){
+  const nextName=String(m.name??p.name).trim().slice(0,24)||p.name;
+  const nextPhoto=String(m.photo??p.photo).slice(0,200000);
+  const nextColor=COLORS.includes(m.color)?m.color:p.color;
+  const colorBusy=Object.values(room.players).some(x=>x!==p&&x.connected&&x.color===nextColor);
+  if(colorBusy)return err(ws,'Ese color ya está ocupado por otra jugadora.');
+  p.name=nextName; p.photo=nextPhoto; p.color=nextColor;
+  log(room,`${p.name} ha actualizado su perfil`);
+  send(room); return;
+}
  if(m.type==='start'){if(id!==room.host)return err(ws,'Solo la anfitriona puede empezar.');if(connectedPlayers(room).length<2)return err(ws,'Necesitáis al menos 2 jugadoras.');newGame(room);send(room);return;}
  if(m.type==='leave'){p.connected=false;room.sockets.delete(id);if(room.host===id){const next=connectedPlayers(room)[0];if(next)room.host=next[0]}send(room);return;}
  if(room.phase==='lobby')return;
@@ -125,7 +134,7 @@ if(room.phase!=='playing'||room.turn!==id)return;
  if(m.type==='moveRobber'){if(!room.rolled||!room.pendingRobber)return;const hid=Number(m.hexId);if(!room.board.cells[hid]||hid===room.robber)return err(ws,'Elige otro hexágono.');room.robber=hid;room.pendingRobber.hex=hid;const adjacentProfiles=new Set();room.board.cells[hid].vertexIds.forEach(v=>{const owner=room.board.vertices[v].owner;if(owner&&owner!==p.profile)adjacentProfiles.add(owner)});if(!adjacentProfiles.size){delete room.pendingRobber;log(room,`${p.name} ha movido a Cristo.`);send(room);return;}room.pendingRobber.targets=[...adjacentProfiles].map(prof=>Object.entries(room.players).find(([,q])=>q.profile===prof)?.[0]).filter(Boolean);send(room);return;}
  if(m.type==='steal'){if(!room.pendingRobber||room.pendingRobber.hex===null)return;const target=room.players[m.target];if(!target||!room.pendingRobber.targets.includes(m.target))return err(ws,'Objetivo no válido.');const r=steal(room,target,p);delete room.pendingRobber;log(room,r?`${p.name} ha robado 1 recurso a ${target.name}`:`${p.name} no ha podido robar recursos`);send(room);return;}
  if(room.pendingRobber)return err(ws,'Primero termina la acción de Cristo.');
- if(m.type==='build'){const what=m.what;if(!COST[what]||!canPay(p,COST[what]))return err(ws,'No tienes recursos suficientes.');if(what==='road'){const e=Number(m.pos);const free=(p.freeRoads||0)>0;if(p.roads<=0&& !free)return err(ws,'No te quedan caminos.');if(!roadConnects(room,p,e,false))return err(ws,'Ese camino no conecta con tu red.');if(!free)charge(room,p,COST.road);else p.freeRoads--;p.roads--;p.roadsOn.push(e);log(room,`${p.name} ha construido un camino${free?' gratis':''}`);}
+ if(m.type==='build'){const what=m.what;if(!COST[what])return err(ws,'Construcción no válida.');if(what!=='road'&& !canPay(p,COST[what]))return err(ws,'No tienes recursos suficientes.');if(what==='road'){const e=Number(m.pos);const free=(p.freeRoads||0)>0;if(p.roads<=0&& !free)return err(ws,'No te quedan caminos.');if(!roadConnects(room,p,e,false))return err(ws,'Ese camino no conecta con tu red.');if(!free)charge(room,p,COST.road);else p.freeRoads--;p.roads--;p.roadsOn.push(e);log(room,`${p.name} ha construido un camino${free?' gratis':''}`);}
  else if(what==='settlement'){const v=Number(m.pos);if(p.settlements<=0||!settlementLegal(room,p,v))return err(ws,'Ese pueblo no cumple las reglas de distancia/conexión.');charge(room,p,COST.settlement);room.board.vertices[v].owner=p.profile;p.settlements--;p.settlementsOn.push(v);p.vp++;log(room,`${p.name} ha construido un pueblo`);}
  else if(what==='city'){const v=Number(m.pos);if(p.cities<=0||!p.settlementsOn.includes(v))return err(ws,'Solo puedes mejorar uno de tus pueblos.');charge(room,p,COST.city);p.settlementsOn=p.settlementsOn.filter(x=>x!==v);p.citiesOn.push(v);p.cities--;p.settlements++;p.vp++;log(room,`${p.name} ha construido una ciudad`);}
  updateAchievements(room);checkWin(room,p);send(room);return;}
