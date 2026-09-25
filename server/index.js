@@ -42,23 +42,49 @@ function layoutFor(n){
 }
 function axialForRows(rows){
  const cells=[]; let id=0;
- for(let r=0;r<rows.length;r++){
-  const len=rows[r], qStart=-Math.floor((len-1)/2);
-  for(let c=0;c<len;c++){const q=qStart+c; const rr=r-Math.floor(rows.length/2); cells.push({id:id++,q,r:rr,row:r,col:c});}
+ // Pointy-top CATAN layout. Rows 3-4-5-4-3 share complete edges.
+ const mid=(rows.length-1)/2;
+ const dx=Math.sqrt(3), dy=1.5;
+ for(let row=0;row<rows.length;row++){
+  const len=rows[row], y=(row-mid)*dy;
+  const x0=-((len-1)*dx)/2;
+  for(let col=0;col<len;col++){
+   cells.push({id:id++,q:col,r:row,row,col,cx:x0+col*dx,cy:y});
+  }
  }
  return cells;
 }
-function hexCorners(x,y,s){let a=[];for(let i=0;i<6;i++){const ang=Math.PI/180*(60*i-30);a.push({x:x+s*Math.cos(ang),y:y+s*Math.sin(ang)})}return a;}
+
+function hexCorners(x,y,s){let a=[];for(let i=0;i<6;i++){const ang=Math.PI/180*(60*i);a.push({x:x+s*Math.cos(ang),y:y+s*Math.sin(ang)})}return a;}
 function buildTopology(rows){
- const cells=axialForRows(rows), map=new Map(cells.map(c=>[`${c.q},${c.r}`,c]));
- const vertices=new Map(), edges=new Map(); const keyp=(x,y)=>`${Math.round(x*1000)/1000},${Math.round(y*1000)/1000}`;
- const s=1, dx=Math.sqrt(3)*s, dy=1.5*s;
- cells.forEach(c=>{const x=c.q*dx,y=c.r*dy; c.cx=x;c.cy=y;c.neighbors=[];const cs=hexCorners(x,y,s);c.vertexIds=[];for(const p of cs){const k=keyp(p.x,p.y);if(!vertices.has(k))vertices.set(k,{id:vertices.size,x:p.x,y:p.y,adj:[],hexes:[]});const v=vertices.get(k);v.hexes.push(c.id);c.vertexIds.push(v.id)}for(let i=0;i<6;i++){const a=c.vertexIds[i],b=c.vertexIds[(i+1)%6],k=a<b?`${a}-${b}`:`${b}-${a}`;if(!edges.has(k))edges.set(k,{id:edges.size,a,b,hexes:[]});edges.get(k).hexes.push(c.id)}});
- const verts=[...vertices.values()]; const ed=[...edges.values()];
+ const cells=axialForRows(rows);
+ const vertices=new Map(), edges=new Map();
+ const keyp=(x,y)=>`${Math.round(x*1000)/1000},${Math.round(y*1000)/1000}`;
+ const keye=(a,b)=>a<b?`${a}-${b}`:`${b}-${a}`;
+ cells.forEach(c=>{
+  c.neighbors=[];
+  const cs=hexCorners(c.cx,c.cy,1); c.vertexIds=[];
+  for(const pt of cs){
+   const k=keyp(pt.x,pt.y);
+   if(!vertices.has(k))vertices.set(k,{id:vertices.size,x:pt.x,y:pt.y,adj:[],hexes:[]});
+   const v=vertices.get(k); v.hexes.push(c.id); c.vertexIds.push(v.id);
+  }
+  for(let i=0;i<6;i++){
+   const a=c.vertexIds[i],b=c.vertexIds[(i+1)%6],k=keye(a,b);
+   if(!edges.has(k))edges.set(k,{id:edges.size,a,b,hexes:[]});
+   edges.get(k).hexes.push(c.id);
+  }
+ });
+ const verts=[...vertices.values()], ed=[...edges.values()];
  ed.forEach(e=>{verts[e.a].adj.push(e.b);verts[e.b].adj.push(e.a)});
- const dirs=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]]; cells.forEach(c=>dirs.forEach(([dq,dr])=>{const n=map.get(`${c.q+dq},${c.r+dr}`);if(n&&!c.neighbors.includes(n.id))c.neighbors.push(n.id)}));
+ // True geometric neighbors: centers separated by sqrt(3) for pointy-top hexes.
+ for(let i=0;i<cells.length;i++)for(let j=i+1;j<cells.length;j++){
+  const a=cells[i],b=cells[j],dx=a.cx-b.cx,dy=a.cy-b.cy;
+  if(Math.hypot(dx,dy)<Math.sqrt(3)+0.01){a.neighbors.push(b.id);b.neighbors.push(a.id)}
+ }
  return {cells,vertices:verts,edges:ed};
 }
+
 function resourceDistribution(n){const count=n<=4?19:n<=6?30:37;const sets=count===19?[4,3,4,4,3]:count===30?[6,5,6,6,7]:[8,7,8,7,7];const base=[];RES.forEach((r,i)=>{for(let k=0;k<sets[i];k++)base.push(r)});return shuffle(base);}
 function numbersFor(count){
  const nums=[2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12];
@@ -101,7 +127,7 @@ function checkWin(room,p){if(p.vp>=10&&room.phase==='playing'){room.phase='ended
 function nextTurn(room){const current=room.players[room.turn];if(current)current.devNew={};const idx=room.order.indexOf(room.turn); for(let i=1;i<=room.order.length;i++){const id=room.order[(idx+i)%room.order.length];if(room.players[id]?.connected){room.turn=id;break}}room.rolled=false;room.pendingTrade=null;room.dice=null;room.lastGains=[];}
 function adjacentOccupied(room,vid){return room.board.vertices[vid].adj.some(v=>room.board.vertices[v].owner);}
 function roadConnects(room,p,eid,free=false){const e=room.board.edges[eid];if(!e)return false; if(p.roadsOn.includes(eid))return false; const ends=[e.a,e.b]; if(free)return true; for(const v of ends){const vv=room.board.vertices[v]; if(vv.owner===p.profile)return true; if(vv.owner&&vv.owner!==p.profile)continue; if(p.roadsOn.some(x=>{const re=room.board.edges[x];return re.a===v||re.b===v}))return true;}return false;}
-function settlementLegal(room,p,vid,initial=false){const v=room.board.vertices[vid];if(!v||v.owner||adjacentOccupied(room,vid))return false;if(initial)return true;return v.adj.some(n=>room.board.vertices[n].owner===p.profile&&p.roadsOn.some(eid=>{const e=room.board.edges[eid];return e.a===n||e.b===n}));}
+function settlementLegal(room,p,vid,initial=false){const v=room.board.vertices[vid];if(!v||v.owner||adjacentOccupied(room,vid))return false;if(initial)return true;return p.roadsOn.some(eid=>{const e=room.board.edges[eid];return e.a===vid||e.b===vid});}
 function portRatio(room,p,resource){let ratio=4;for(const vid of Object.keys(room.board.vertices)){const v=room.board.vertices[vid];if(v.owner===p.profile&&v.port){if(v.port===resource)ratio=2;else if(v.port==='3:1')ratio=Math.min(ratio,3)}}return ratio;}
 function distribute(room,num){room.lastGains=[];for(const c of room.board.cells){if(c.number!==num||c.id===room.robber||c.terrain==='desierto')continue;const demands=[];let total=0;for(const [pid,p] of Object.entries(room.players))if(p.connected){let n=0;for(const vid of p.settlementsOn)if(room.board.vertices[vid].hexes.includes(c.id))n++;for(const vid of p.citiesOn)if(room.board.vertices[vid].hexes.includes(c.id))n+=2;if(n){demands.push([pid,p,n]);total+=n;}}if(total<=room.bank[c.terrain])for(const [pid,p,n] of demands){const got=give(room,p,c.terrain,n);if(got)room.lastGains.push({playerId:pid,profile:p.profile,resource:c.terrain,amount:got});}}}
 function steal(room,from,to){const choices=[];for(const r of RES)for(let i=0;i<from.res[r];i++)choices.push(r);if(!choices.length)return null;const r=choices[Math.floor(Math.random()*choices.length)];from.res[r]--;to.res[r]++;return r;}
