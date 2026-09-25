@@ -3,10 +3,20 @@ const http=require('http');
 const {WebSocketServer}=require('ws');
 const path=require('path');
 const app=express(); const server=http.createServer(app); const wss=new WebSocketServer({server});
-app.use(express.static(path.join(__dirname,'../client'))); app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'../client/index.html')));
+app.use(express.static(path.join(__dirname,'../client')));
+app.use(express.json());
 
 const PROFILES=['Raquel','Sara','Carmen Hernandez','Lucía','Carmen gago','Nuria','Rebeca','Marta'];
 const COLORS=['rojo','azul','verde','amarillo','morado','rosa','naranja','turquesa'];
+
+app.get('/api/rooms/:code/colors',(req,res)=>{
+ const r=rooms.get(String(req.params.code||'').toUpperCase());
+ if(!r)return res.status(404).json({error:'No existe esa partida.'});
+ res.json({players:Object.values(r.players).map(p=>({profile:p.profile,color:p.color,connected:p.connected}))});
+});
+
+app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'../client/index.html')));
+
 const RES=['croquetas','cerveza','chiva','vater','cruz'];
 const TERR=['croquetas','cerveza','chiva','vater','cruz'];
 const COST={road:{croquetas:1,cerveza:1},settlement:{croquetas:1,cerveza:1,chiva:1,vater:1},city:{vater:2,cruz:3},dev:{chiva:1,vater:1,cruz:1}};
@@ -23,7 +33,7 @@ const emptyRes=()=>Object.fromEntries(RES.map(r=>[r,0]));
 const totalRes=p=>RES.reduce((n,r)=>n+p.res[r],0);
 const connectedPlayers=room=>Object.entries(room.players).filter(([,p])=>p.connected);
 const activeIds=room=>room.order.filter(id=>room.players[id]?.connected);
-const makePlayer=(profile,name,color,photo='')=>({profile,name:name||profile,color,photo,res:emptyRes(),dev:[],vp:0,roads:15,settlements:5,cities:4,knights:0,roadsOn:[],settlementsOn:[],citiesOn:[],devNew:{},freeRoads:0,connected:true});
+const makePlayer=(profile,color)=>({profile,name:profile,color,res:emptyRes(),dev:[],vp:0,roads:15,settlements:5,cities:4,knights:0,roadsOn:[],settlementsOn:[],citiesOn:[],devNew:{},freeRoads:0,connected:true});
 
 function layoutFor(n){
  if(n<=4)return [3,4,5,4,3];
@@ -71,9 +81,9 @@ function createBoard(n){
  return {...topo,portTypes};
 }
 function bankFor(){return Object.fromEntries(RES.map(r=>[r,19]));}
-function initRoom(){return {code:code(),phase:'lobby',players:{},sockets:new Map(),host:null,order:[],turn:null,rolled:false,board:null,bank:bankFor(),deck:shuffle(DEV_DECK),robber:null,log:[],winner:null,largestArmy:null,longestRoad:null,pendingTrade:null,placementIndex:0,placeRound:1,dice:null};}
+function initRoom(){return {lastGains:[],code:code(),phase:'lobby',players:{},sockets:new Map(),host:null,order:[],turn:null,rolled:false,board:null,bank:bankFor(),deck:shuffle(DEV_DECK),robber:null,log:[],winner:null,largestArmy:null,longestRoad:null,pendingTrade:null,placementIndex:0,placeRound:1,dice:null};}
 function visiblePlayer(p){return {...p,connected:!!p.connected};}
-function publicState(room,viewer){const players={};for(const [pid,p] of Object.entries(room.players)){const q={...p};if(pid!==viewer){q.res=emptyRes();q.resourceCount=totalRes(p);q.dev=[];q.devCount=p.dev.length;}players[pid]=q;}return {code:room.code,phase:room.phase,host:room.host,players,order:room.order,turn:room.turn,rolled:room.rolled,board:room.board,bank:room.bank,robber:room.robber,log:room.log.slice(-45),winner:room.winner,largestArmy:room.largestArmy,longestRoad:room.longestRoad,pendingTrade:room.pendingTrade&&([room.pendingTrade.from,room.pendingTrade.to].includes(viewer)?room.pendingTrade:null),pendingRobber:room.pendingRobber&&room.pendingRobber.fromKnight&&viewer===room.turn?room.pendingRobber:room.pendingRobber&&viewer===room.turn?room.pendingRobber:null,placementIndex:room.placementIndex,placeRound:room.placeRound,dice:room.dice};}
+function publicState(room,viewer){const players={};for(const [pid,p] of Object.entries(room.players)){const q={...p};if(pid!==viewer){q.res=emptyRes();q.resourceCount=totalRes(p);q.dev=[];q.devCount=p.dev.length;}players[pid]=q;}return {code:room.code,phase:room.phase,host:room.host,players,order:room.order,turn:room.turn,rolled:room.rolled,board:room.board,bank:room.bank,robber:room.robber,log:room.log.slice(-45),winner:room.winner,largestArmy:room.largestArmy,longestRoad:room.longestRoad,pendingTrade:room.pendingTrade&&([room.pendingTrade.from,room.pendingTrade.to].includes(viewer)?room.pendingTrade:null),pendingRobber:room.pendingRobber&&room.pendingRobber.fromKnight&&viewer===room.turn?room.pendingRobber:room.pendingRobber&&viewer===room.turn?room.pendingRobber:null,placementIndex:room.placementIndex,placeRound:room.placeRound,dice:room.dice,lastGains:room.lastGains||[]};}
 function send(room){for(const [pid,s] of room.sockets.entries())if(s.readyState===1)s.send(JSON.stringify({type:'state',state:publicState(room,pid)}));}
 function err(ws,msg){if(ws.readyState===1)ws.send(JSON.stringify({type:'err',msg}));}
 function log(room,msg){room.log.push(msg);if(room.log.length>120)room.log.shift();}
@@ -88,30 +98,20 @@ function updateAchievements(room){
  if(ma>=3&&(!oldA||ma>oldN)){const candidate=armies.find(x=>x.n===ma);if(oldA)room.players[oldA].vp=Math.max(0,room.players[oldA].vp-2);room.largestArmy=candidate.id;room.players[candidate.id].vp+=2;log(room,`${room.players[candidate.id].name} tiene el Mayor ejército (+2)`);}else if(oldA&&!room.players[oldA].connected){room.players[oldA].vp=Math.max(0,room.players[oldA].vp-2);room.largestArmy=null;}
 }
 function checkWin(room,p){if(p.vp>=10&&room.phase==='playing'){room.phase='ended';room.winner=p.profile;log(room,`${p.name} ha ganado la partida`);}}
-function nextTurn(room){const current=room.players[room.turn];if(current)current.devNew={};const idx=room.order.indexOf(room.turn); for(let i=1;i<=room.order.length;i++){const id=room.order[(idx+i)%room.order.length];if(room.players[id]?.connected){room.turn=id;break}}room.rolled=false;room.pendingTrade=null;room.dice=null;}
+function nextTurn(room){const current=room.players[room.turn];if(current)current.devNew={};const idx=room.order.indexOf(room.turn); for(let i=1;i<=room.order.length;i++){const id=room.order[(idx+i)%room.order.length];if(room.players[id]?.connected){room.turn=id;break}}room.rolled=false;room.pendingTrade=null;room.dice=null;room.lastGains=[];}
 function adjacentOccupied(room,vid){return room.board.vertices[vid].adj.some(v=>room.board.vertices[v].owner);}
 function roadConnects(room,p,eid,free=false){const e=room.board.edges[eid];if(!e)return false; if(p.roadsOn.includes(eid))return false; const ends=[e.a,e.b]; if(free)return true; for(const v of ends){const vv=room.board.vertices[v]; if(vv.owner===p.profile)return true; if(vv.owner&&vv.owner!==p.profile)continue; if(p.roadsOn.some(x=>{const re=room.board.edges[x];return re.a===v||re.b===v}))return true;}return false;}
 function settlementLegal(room,p,vid,initial=false){const v=room.board.vertices[vid];if(!v||v.owner||adjacentOccupied(room,vid))return false;if(initial)return true;return v.adj.some(n=>room.board.vertices[n].owner===p.profile&&p.roadsOn.some(eid=>{const e=room.board.edges[eid];return e.a===n||e.b===n}));}
 function portRatio(room,p,resource){let ratio=4;for(const vid of Object.keys(room.board.vertices)){const v=room.board.vertices[vid];if(v.owner===p.profile&&v.port){if(v.port===resource)ratio=2;else if(v.port==='3:1')ratio=Math.min(ratio,3)}}return ratio;}
-function distribute(room,num){for(const c of room.board.cells){if(c.number!==num||c.id===room.robber||c.terrain==='desierto')continue;const demands=[];let total=0;for(const [pid,p] of Object.entries(room.players))if(p.connected){let n=0;for(const vid of p.settlementsOn)if(room.board.vertices[vid].hexes.includes(c.id))n++;for(const vid of p.citiesOn)if(room.board.vertices[vid].hexes.includes(c.id))n+=2;if(n){demands.push([p,n]);total+=n;}}if(total<=room.bank[c.terrain])for(const [p,n] of demands)give(room,p,c.terrain,n);}}
+function distribute(room,num){room.lastGains=[];for(const c of room.board.cells){if(c.number!==num||c.id===room.robber||c.terrain==='desierto')continue;const demands=[];let total=0;for(const [pid,p] of Object.entries(room.players))if(p.connected){let n=0;for(const vid of p.settlementsOn)if(room.board.vertices[vid].hexes.includes(c.id))n++;for(const vid of p.citiesOn)if(room.board.vertices[vid].hexes.includes(c.id))n+=2;if(n){demands.push([pid,p,n]);total+=n;}}if(total<=room.bank[c.terrain])for(const [pid,p,n] of demands){const got=give(room,p,c.terrain,n);if(got)room.lastGains.push({playerId:pid,profile:p.profile,resource:c.terrain,amount:got});}}}
 function steal(room,from,to){const choices=[];for(const r of RES)for(let i=0;i<from.res[r];i++)choices.push(r);if(!choices.length)return null;const r=choices[Math.floor(Math.random()*choices.length)];from.res[r]--;to.res[r]++;return r;}
-function newGame(room){room.phase='placement1';room.order=shuffle(connectedPlayers(room).map(([id])=>id));room.turn=room.order[0];room.rolled=false;room.board=createBoard(room.order.length);room.bank=bankFor();room.deck=shuffle(DEV_DECK);room.robber=room.board.cells.find(c=>c.terrain==='desierto').id;room.log=[];room.winner=null;room.longestRoad=null;room.largestArmy=null;room.pendingTrade=null;room.placementIndex=0;room.placeRound=1;room.dice=null;room.placementDone=new Set();for(const p of Object.values(room.players)){p.res=emptyRes();p.dev=[];p.vp=0;p.roads=15;p.settlements=5;p.cities=4;p.knights=0;p.roadsOn=[];p.settlementsOn=[];p.citiesOn=[];p.devNew={};p.freeRoads=0;}log(room,'Partida iniciada: colocación inicial');}
+function newGame(room){room.phase='placement1';room.order=shuffle(connectedPlayers(room).map(([id])=>id));room.turn=room.order[0];room.rolled=false;room.board=createBoard(room.order.length);room.bank=bankFor();room.deck=shuffle(DEV_DECK);room.robber=room.board.cells.find(c=>c.terrain==='desierto').id;room.log=[];room.winner=null;room.longestRoad=null;room.largestArmy=null;room.pendingTrade=null;room.placementIndex=0;room.placeRound=1;room.dice=null;room.lastGains=[];room.placementDone=new Set();for(const p of Object.values(room.players)){p.res=emptyRes();p.dev=[];p.vp=0;p.roads=15;p.settlements=5;p.cities=4;p.knights=0;p.roadsOn=[];p.settlementsOn=[];p.citiesOn=[];p.devNew={};p.freeRoads=0;}log(room,'Partida iniciada: colocación inicial');}
 function removeDisconnected(room){/* intentionally keep seats/pieces blocked during a live game */}
 
 wss.on('connection',ws=>{let room=null,id=null;ws.on('message',raw=>{let m;try{m=JSON.parse(raw)}catch{return}
- if(m.type==='create'){room=initRoom();id=uid();const profile=PROFILES.includes(m.profile)?m.profile:PROFILES[0];const color=COLORS.includes(m.color)?m.color:COLORS[0];room.players[id]=makePlayer(profile,String(m.name||profile).slice(0,24),color,m.photo||'');room.host=id;room.sockets.set(id,ws);rooms.set(room.code,room);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
- if(m.type==='join'){const r=rooms.get(String(m.code||'').toUpperCase());if(!r)return err(ws,'No existe esa partida.');const prof=PROFILES.includes(m.profile)?m.profile:PROFILES[0];const existing=Object.entries(r.players).find(([,p])=>p.profile===prof);if(existing&&!existing[1].connected&&r.phase!=='ended'){id=existing[0];room=r;const p=r.players[id];p.connected=true;p.name=String(m.name||p.name||prof).slice(0,24);p.photo=String(m.photo ?? p.photo ?? '').slice(0,200000);if(COLORS.includes(m.color)&&!Object.values(r.players).some((q,qid)=>qid!==id&&q.connected&&q.color===m.color))p.color=m.color;room.sockets.set(id,ws);ws.send(JSON.stringify({type:'hello',id,code:room.code,reconnected:true}));log(room,`${p.name} se ha reconectado a la partida`);send(room);return;}if(r.phase!=='lobby')return err(ws,'La partida ya ha comenzado. Usa el mismo perfil y código para reconectarte.');if(connectedPlayers(r).length>=8)return err(ws,'La partida está llena.');if(existing&&existing[1].connected)return err(ws,'Ese perfil ya está ocupado.');if(Object.values(r.players).some(p=>p.color===m.color&&p.connected))return err(ws,'Ese color ya está ocupado.');room=r;id=uid();room.players[id]=makePlayer(prof,String(m.name||prof).slice(0,24),COLORS.includes(m.color)?m.color:COLORS[0],m.photo||'');room.sockets.set(id,ws);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
+ if(m.type==='create'){room=initRoom();id=uid();const profile=PROFILES.includes(m.profile)?m.profile:PROFILES[0];const color=COLORS.includes(m.color)?m.color:COLORS[0];room.players[id]=makePlayer(profile,color);room.host=id;room.sockets.set(id,ws);rooms.set(room.code,room);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
+ if(m.type==='join'){const r=rooms.get(String(m.code||'').toUpperCase());if(!r)return err(ws,'No existe esa partida.');const prof=PROFILES.includes(m.profile)?m.profile:PROFILES[0];const existing=Object.entries(r.players).find(([,p])=>p.profile===prof);if(existing&&!existing[1].connected&&r.phase!=='ended'){id=existing[0];room=r;const p=r.players[id];p.connected=true;if(COLORS.includes(m.color)&&!Object.values(r.players).some((q,qid)=>qid!==id&&q.connected&&q.color===m.color))p.color=m.color;room.sockets.set(id,ws);ws.send(JSON.stringify({type:'hello',id,code:room.code,reconnected:true}));log(room,`${p.name} se ha reconectado a la partida`);send(room);return;}if(r.phase!=='lobby')return err(ws,'La partida ya ha comenzado. Usa el mismo perfil y código para reconectarte.');if(connectedPlayers(r).length>=8)return err(ws,'La partida está llena.');if(existing&&existing[1].connected)return err(ws,'Ese perfil ya está ocupado.');if(Object.values(r.players).some(p=>p.color===m.color))return err(ws,'Ese color ya está ocupado.');room=r;id=uid();room.players[id]=makePlayer(prof,COLORS.includes(m.color)?m.color:COLORS[0]);room.sockets.set(id,ws);ws.send(JSON.stringify({type:'hello',id,code:room.code}));send(room);return;}
  if(!room||!id||!room.players[id])return; const p=room.players[id];
- if(m.type==='profile'||m.type==='profileUpdate'){
-  const nextName=String(m.name??p.name).trim().slice(0,24)||p.name;
-  const nextPhoto=String(m.photo??p.photo).slice(0,200000);
-  const nextColor=COLORS.includes(m.color)?m.color:p.color;
-  const colorBusy=Object.values(room.players).some(x=>x!==p&&x.connected&&x.color===nextColor);
-  if(colorBusy)return err(ws,'Ese color ya está ocupado por otra jugadora.');
-  p.name=nextName; p.photo=nextPhoto; p.color=nextColor;
-  log(room,`${p.name} ha actualizado su perfil`);
-  send(room); return;
-}
  if(m.type==='start'){if(id!==room.host)return err(ws,'Solo la anfitriona puede empezar.');if(connectedPlayers(room).length<2)return err(ws,'Necesitáis al menos 2 jugadoras.');newGame(room);send(room);return;}
  if(m.type==='leave'){p.connected=false;room.sockets.delete(id);log(room,`${p.name} se ha desconectado; su perfil queda reservado para reconexión.`);if(room.host===id){const next=connectedPlayers(room)[0];if(next)room.host=next[0]}send(room);return;}
  if(room.phase==='lobby')return;

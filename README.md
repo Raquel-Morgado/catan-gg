@@ -1,41 +1,49 @@
 # CATAN GG
 
-Proyecto web multijugador autocontenido para 2–8 jugadoras.
+Versión de CATAN GG para jugar online con 2–8 jugadoras.
 
-## Esta versión incluye
-- Tablero hexagonal con forma de isla Catan y tamaños adaptados a 2–8.
-- Vértices y aristas reales para colocar pueblos/ciudades y carreteras.
-- Selección visual: al elegir una construcción se iluminan las posiciones legales.
-- Validación de las posiciones también en servidor.
-- Recursos y terrenos ilustrados en SVG originales.
-- Mar de cerveza ilustrado con oleaje y flotadores temáticos.
-- Piezas personalizadas de las 8 jugadoras como ilustraciones vectoriales.
-- Cartas de recursos y desarrollo ilustradas.
-- Puertos ilustrados.
-- Cristo como figura especial.
-- Multijugador por WebSocket, códigos de sala y transferencia de anfitriona.
-- Reglas de recursos, construcción, comercio, desarrollo, 7/Cristo, Camino más largo, Mayor ejército y victoria.
+## Deploy en Render
 
-No necesita descargar imágenes ni añadir assets externos.
+1. Sube este proyecto a tu repositorio de GitHub.
+2. En Render crea un Web Service conectado al repositorio.
+3. Configura:
+   - Runtime: Node
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+4. No necesitas Supabase, base de datos ni variables de entorno.
 
-## Ejecutar en local
-Requiere Node.js 20+.
+## Perfiles
 
-```bash
-npm install
-npm start
-```
+Hay 8 perfiles fijos:
 
-Abrir `http://localhost:3000`.
+- Raquel
+- Sara
+- Carmen Hernandez
+- Lucía
+- Carmen gago
+- Nuria
+- Rebeca
+- Marta
 
-## Desplegar
-El proyecto está preparado para un Web Service de Render.
+Los nombres y avatares son parte del juego y no se pueden editar.
 
-- Runtime: Node
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Branch: `main`
-- Root Directory: vacío
-- Plan: Free
+En cada partida cada jugadora elige un color. Un color ocupado queda deshabilitado y el servidor también valida que no haya dos jugadoras con el mismo color.
 
-El archivo `render.yaml` ya está incluido.
+## Persistencia
+
+La partida **no se guarda** en una base de datos ni en disco. El estado vive en memoria del servidor. Si una jugadora pierde la conexión puede volver a entrar con el mismo código y perfil mientras la partida siga viva en el servidor. Si Render reinicia el proceso, la partida se pierde.
+
+El código de partida se conserva localmente en el navegador solo para facilitar la reconexión; no es un guardado de la partida.
+
+## Tablero
+
+- 2 jugadores usan el mismo tablero de 19 hexágonos que 3–4 jugadores.
+- Los 19 hexágonos forman una isla hexagonal perfecta.
+- El mar rodea la isla y usa una ilustración de agua con olas y espuma.
+- Carreteras ocupan aristas reales.
+- Pueblos y ciudades ocupan vértices reales.
+- Los iconos de construcción usan las piezas personalizadas de cada perfil.
+
+## Importante
+
+Las ilustraciones de los avatares y componentes incluidas en el proyecto son originales y están integradas como archivos locales; no necesitas añadir imágenes externas.

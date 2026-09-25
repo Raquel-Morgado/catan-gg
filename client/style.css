@@ -22,3 +22,42 @@
 .boardArea{background:#9b5c14}.beerLabel{background:#5f3714e8;border:1px solid #f3d27a55;color:#ffeab0}.floaty{filter:drop-shadow(0 5px 4px #0005)}
 .actionBar button{transition:transform .12s,box-shadow .12s,opacity .12s}.actionBar button:not(.ghost){box-shadow:0 4px 13px #0005}.actionBar button.active{outline:3px solid #ffe28a;box-shadow:0 0 20px #f8d56a99,0 5px 15px #0007}
 .legalEdge{stroke-dasharray:14 7}.legalVertex circle{stroke-dasharray:5 3}.placementHelp strong{color:#fff2b3}
+/* CATAN GG — mesa física ilustrada / agua real */
+body{background:radial-gradient(circle at 50% -10%,#354d5b 0,#1c2a31 42%,#10181c 100%)}
+.boardArea{background:radial-gradient(circle at 50% 50%,#203f4a 0,#102a35 70%);padding:14px}
+.boardArea:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,#ffffff08,#00000012 45%,#ffffff05);pointer-events:none}
+.boardSvg{width:min(98%,1120px);height:min(88vh,780px);filter:drop-shadow(0 28px 28px #0009)}
+.boardSvg>rect:first-child{fill:#1a617b}
+.hex polygon{stroke:#e8dfc3aa;stroke-width:4}
+.hex:hover polygon{stroke:#fff5d4;filter:drop-shadow(0 9px 8px #0007)}
+.numberToken{filter:drop-shadow(0 3px 2px #0006)}
+.port circle{filter:drop-shadow(0 4px 3px #0006)}
+/* icon-only action dock */
+.actionBar{align-items:center;justify-content:center;gap:10px}
+.actionIcon,.rollButton,.endTurn{position:relative;display:grid;place-items:center;width:68px;height:68px;min-width:68px;padding:7px;border-radius:18px;background:linear-gradient(145deg,#25394c,#142331);border:1px solid #d8c58c55;color:#f7edcf;box-shadow:0 8px 18px #0008,inset 0 1px #ffffff18}
+.actionIcon img{width:46px;height:46px;object-fit:contain;filter:drop-shadow(0 5px 4px #0007)}
+.actionIcon span{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:900;white-space:nowrap;background:#0c151d;color:#f4e8c6;border:1px solid #d8c58c44;padding:3px 6px;border-radius:8px}
+.actionIcon.active{outline:3px solid #efd37c;box-shadow:0 0 20px #efd37c66,inset 0 1px #fff5c0}
+.rollButton{font-weight:1000;background:linear-gradient(145deg,#f1dfaa,#b18a4c);color:#2c2115}
+.diceGlyph{font-size:25px;border:3px solid #3f2e1c;border-radius:9px;width:34px;height:34px;display:grid;place-items:center;background:#fff7dd;box-shadow:inset 0 -4px #d8c79c}
+.endTurn{font-size:28px;background:linear-gradient(145deg,#355244,#1b3028);color:#cce5c9}
+/* dice result */
+.diceOverlay{position:absolute;left:50%;top:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 15px;border-radius:18px;background:#f8f0dcf2;color:#342717;box-shadow:0 14px 35px #0009;border:2px solid #8f7444;z-index:8;font-weight:1000;pointer-events:none}
+.diceOverlay .die{width:46px;height:46px;border-radius:11px;display:grid;place-items:center;background:#fffaf0;border:3px solid #6d5738;font-size:24px;box-shadow:inset 0 -5px #dfd2b5}
+.diceOverlay strong{font-size:25px;color:#8e3f29}.diceFresh{animation:diceDrop .65s cubic-bezier(.2,.9,.2,1)}
+@keyframes diceDrop{0%{opacity:0;transform:translate(-50%,-35px) scale(.65) rotate(-4deg)}60%{opacity:1;transform:translate(-50%,5px) scale(1.08) rotate(2deg)}100%{transform:translate(-50%,0) scale(1)}}
+/* resource distribution */
+.gainOverlay{position:absolute;right:18px;top:18px;z-index:7;display:grid;gap:8px;pointer-events:none;max-width:min(360px,48vw)}
+.gainRow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:14px;background:#0e1c27ed;border:1px solid #ffffff20;box-shadow:0 10px 24px #0008;animation:gainIn .45s var(--delay) both cubic-bezier(.2,.9,.2,1)}
+.gainWho{display:flex;align-items:center;gap:6px;min-width:90px;color:#f6ebcf;font-size:11px}.gainItems{display:flex;gap:2px}.gainItems img{width:35px;height:35px;object-fit:contain;animation:resourcePop .55s var(--delay) both}
+@keyframes gainIn{from{opacity:0;transform:translateX(35px) scale(.92)}to{opacity:1;transform:none}}@keyframes resourcePop{0%{transform:translateY(14px) scale(.3);opacity:0}65%{transform:translateY(-3px) scale(1.15);opacity:1}100%{transform:none}}
+.confetti{font-size:18px;letter-spacing:4px;color:#d9c58c;font-weight:1000}
+.beerLabel{display:none}
+@media(max-width:900px){.gainOverlay{right:10px;top:72px;max-width:55vw}.actionIcon,.rollButton,.endTurn{width:58px;height:58px;min-width:58px}.actionIcon img{width:39px;height:39px}}
+@media(max-width:600px){.gainOverlay{max-width:62vw}.gainWho{min-width:65px;font-size:9px}.gainItems img{width:29px;height:29px}.diceOverlay{top:12px}.diceOverlay .die{width:40px;height:40px}}
+/* Perfil fijo + avatares ilustrados */
+.profileCard{position:relative;overflow:hidden;min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:14px 10px 16px;gap:4px;background:linear-gradient(160deg,#203248,#111c29);border:1px solid #ffffff18;border-radius:20px;color:#fff;box-shadow:0 12px 28px #0005;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+.profileCard:hover{transform:translateY(-3px);border-color:#e8d39a66;box-shadow:0 16px 34px #0007}.profileCard b{font-size:15px}.profileCard small{color:#aab8c8}.profileAvatar{width:128px;height:128px;border-radius:50%;object-fit:cover;border:4px solid #e9d9ae;box-shadow:0 8px 18px #0008;margin-bottom:4px}.profileChoose{text-align:center}.avatarHero{display:flex;justify-content:center;margin-bottom:4px}.profilePortrait{width:150px;height:150px;border-radius:50%;object-fit:cover;border:5px solid #ead8a8;box-shadow:0 12px 28px #0008}.profileDescription{color:#9aa9b8;font-size:13px;margin:0 0 18px}.avatar,.avatarImg{width:48px;height:48px;border-radius:50%;object-fit:cover;flex:none}.lobbyP .avatar{border:2px solid #ead8a8;box-shadow:0 4px 10px #0005}.rejoinTag{font-size:8px;color:#d9c58c;border:1px solid #d9c58c55;border-radius:6px;padding:2px 4px}.colorLegend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff10}.colorChoice{display:flex;align-items:center;gap:4px;font-size:10px;color:#aeb9c6}.colorChoice.taken{opacity:.35;text-decoration:line-through}.dot.rojo{background:#d74a4a}.dot.azul{background:#4f8fd7}.dot.verde{background:#63a85c}.dot.amarillo{background:#e1bd4b}.dot.morado{background:#9b6bd6}.dot.rosa{background:#d879b4}.dot.naranja{background:#dc873d}.dot.turquesa{background:#47b6b3}
+.oppAvatar{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none}.youAvatar{width:62px;height:62px;border-radius:50%;overflow:hidden;border:3px solid #e7d59f;box-shadow:0 6px 14px #0007;flex:none}.youAvatarImg{width:100%;height:100%;object-fit:cover}.actionIcon span{display:none}.actionIcon img{width:48px;height:48px}.actionIcon{width:72px;height:72px}.rollButton{width:72px;height:72px}.endTurn{width:72px;height:72px}.actionIcon:disabled{opacity:.28}.actionIcon[title]:hover{filter:brightness(1.08)}
+select option:disabled{color:#7d8791}
+.boardArea{background:#124f68}.boardSvg{background:#124f68;border-radius:34px}

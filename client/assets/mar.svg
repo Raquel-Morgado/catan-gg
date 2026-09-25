@@ -1,1 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><defs><linearGradient id="g" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></linearGradient></defs><rect width="300" height="200" rx="28" fill="url(#g)"/><circle cx="150" cy="100" r="68" fill="#ffffff22" stroke="#fff" stroke-opacity=".45" stroke-width="4"/><text x="150" y="113" text-anchor="middle" font-size="70">mar</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820">
+<defs>
+ <linearGradient id="water" x2="0" y2="1"><stop stop-color="#5bb6d0"/><stop offset=".42" stop-color="#237f9f"/><stop offset="1" stop-color="#0b4d6c"/></linearGradient>
+ <radialGradient id="sun"><stop stop-color="#d7f3ef" stop-opacity=".28"/><stop offset="1" stop-color="#d7f3ef" stop-opacity="0"/></radialGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+ <pattern id="ripples" width="210" height="105" patternUnits="userSpaceOnUse">
+   <path d="M-20 54 Q25 28 70 54 T160 54 T250 54" fill="none" stroke="#d9f1ed" stroke-width="5" opacity=".25"/>
+   <path d="M35 82 Q70 63 105 82 T175 82" fill="none" stroke="#8fd1db" stroke-width="4" opacity=".28"/>
+   <circle cx="28" cy="22" r="3" fill="#fff" opacity=".35"/><circle cx="155" cy="30" r="4" fill="#fff" opacity=".28"/>
+ </pattern>
+</defs>
+<rect width="1200" height="820" fill="url(#water)"/>
+<ellipse cx="220" cy="160" rx="390" ry="260" fill="url(#sun)"/>
+<ellipse cx="980" cy="660" rx="430" ry="300" fill="url(#sun)"/>
+<rect width="1200" height="820" fill="url(#ripples)"/>
+<g fill="none" stroke-linecap="round">
+ <path d="M-100 130 C80 65 180 180 360 125 S650 70 820 130 S1080 190 1300 115" stroke="#e6f6f2" stroke-width="12" opacity=".42"/>
+ <path d="M-100 190 C70 130 210 250 390 185 S650 130 820 195 S1080 255 1320 180" stroke="#ffffff" stroke-width="5" opacity=".62"/>
+ <path d="M-100 590 C70 520 200 675 380 605 S650 540 820 615 S1080 690 1320 585" stroke="#bde4e5" stroke-width="13" opacity=".35"/>
+ <path d="M-120 675 C70 615 220 750 410 680 S680 620 860 700 S1090 760 1320 670" stroke="#eef9f5" stroke-width="6" opacity=".52"/>
+</g>
+<g fill="#f7fffa" opacity=".72">
+ <path d="M80 320q48-30 96 0q-48 11-96 0z"/><path d="M1000 285q52-31 105 0q-52 12-105 0z"/>
+ <path d="M860 505q47-28 94 0q-47 11-94 0z"/><path d="M235 555q44-26 88 0q-44 10-88 0z"/>
+</g>
+</svg>
