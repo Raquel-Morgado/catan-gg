@@ -13,3 +13,12 @@
 @keyframes legalPulse{from{opacity:.62}to{opacity:1}}
 .resource{min-height:58px}.resource img{width:45px;height:58px;object-fit:contain;border-radius:7px;flex:none}.devCard{padding:7px;min-height:145px}.devCard img{width:75px;height:105px;object-fit:contain}.winnerPieces{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.winnerPieces img{width:90px;height:90px;object-fit:contain}.actionBar button.active{outline:3px solid #ffe28a;box-shadow:0 0 16px #f8d56a99}.placementHelp{padding:9px 12px;background:#241b0c;border-radius:12px;color:#ffe6a0}
 @media(max-width:900px){.boardSvg{min-width:760px;height:560px}.boardArea{overflow:auto}}
+
+/* v2 gameplay polish */
+:root{--res-croquetas:#d98a36;--res-cerveza:#e8b62f;--res-chiva:#69a84f;--res-vater:#58a9d6;--res-cruz:#9b70c7}
+.resource{border-left:4px solid transparent}.res-croquetas{border-left-color:var(--res-croquetas);background:linear-gradient(90deg,#2a2118,#17253a)}.res-cerveza{border-left-color:var(--res-cerveza);background:linear-gradient(90deg,#302816,#17253a)}.res-chiva{border-left-color:var(--res-chiva);background:linear-gradient(90deg,#1b2b1b,#17253a)}.res-vater{border-left-color:var(--res-vater);background:linear-gradient(90deg,#172b35,#17253a)}.res-cruz{border-left-color:var(--res-cruz);background:linear-gradient(90deg,#2b2035,#17253a)}
+.diceOverlay{animation:dicePop .25s ease-out}.diceOverlay rect{filter:drop-shadow(0 8px 14px #0008)}
+@keyframes dicePop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.boardArea{background:#9b5c14}.beerLabel{background:#5f3714e8;border:1px solid #f3d27a55;color:#ffeab0}.floaty{filter:drop-shadow(0 5px 4px #0005)}
+.actionBar button{transition:transform .12s,box-shadow .12s,opacity .12s}.actionBar button:not(.ghost){box-shadow:0 4px 13px #0005}.actionBar button.active{outline:3px solid #ffe28a;box-shadow:0 0 20px #f8d56a99,0 5px 15px #0007}
+.legalEdge{stroke-dasharray:14 7}.legalVertex circle{stroke-dasharray:5 3}.placementHelp strong{color:#fff2b3}
